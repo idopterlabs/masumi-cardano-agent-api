@@ -1,21 +1,16 @@
 import os
-from openai import OpenAI
-import json
-import chromadb
-import PyPDF2
-import requests
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 import logging
 import dotenv
-import uvicorn
+from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from database import get_db, Job
-from fastapi import Depends
 from sqlalchemy.orm import Session
 import uuid
-import hashlib
 import asyncio
+import hashlib
+import uvicorn
+
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
