@@ -1,15 +1,15 @@
-import os
-import logging
+import asyncio
 import dotenv
+import hashlib
+import logging
+import os
+import uuid
+import uvicorn
+from database import get_db, Job
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from database import get_db, Job
 from sqlalchemy.orm import Session
-import uuid
-import asyncio
-import hashlib
-import uvicorn
 
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
