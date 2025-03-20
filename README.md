@@ -1,6 +1,6 @@
-## Masumi Agent Template
+## Masumi Agent DeGen
 
-This is a template for quickly making AI Agents available on the [Masumi Network](https://www.masumi.network/)
+Generates a fun comparison between two different Cardano Wallets
 
 ## Setup
 
