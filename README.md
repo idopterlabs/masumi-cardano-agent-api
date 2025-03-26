@@ -1,6 +1,6 @@
 ## Masumi Cardano Agent API
 
-The Masumi API for [Cardano Agent](https://github.com/idopterlabs/masumi-cardano-agent)
+The Masumi [MIP-003](https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md) compliant API for the [JCat - Cardano Agent](https://github.com/idopterlabs/masumi-cardano-agent) created using the [Masumi Agent Template](https://github.com/idopterlabs/masumi-agent-template)
 
 ## Setup
 
