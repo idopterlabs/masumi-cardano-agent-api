@@ -1,6 +1,6 @@
-## Masumi Agent DeGen
+## Masumi Cardano Agent API
 
-Generates a fun comparison between two different Cardano Wallets
+The Masumi API for [Cardano Agent](https://github.com/idopterlabs/masumi-cardano-agent)
 
 ## Setup
 
@@ -16,9 +16,9 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. **Plug your agent 🤖 :** The `execute_job` function is where your agent will be invoked. You might also want to change the logic for calculating the price and the shape of the inputs your agent accepts.
+3. **Set ENVs**: See `.env.example` as reference.
 
-4. **Run your Agent API:** 
+3. **Run the API:**
 
 ```bash
 python main.py

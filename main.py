@@ -5,20 +5,24 @@ import logging
 import os
 import uuid
 import uvicorn
+import json
 from database import get_db, Job
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import List, TypeAlias
 from sqlalchemy.orm import Session
 
-
+# Must load the .env file before importing Crew
+# so that the Crew can use the environment variables
 dotenv.load_dotenv(override=True)
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+from degen_crew.crew import DegenCrew
 
 from masumi.config import Config
 from masumi.payment import Payment, Amount
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 MASUMI_PAYMENT_SERVICE_URL = os.getenv("MASUMI_PAYMENT_SERVICE_URL")
 MASUMI_PAYMENT_API_KEY = os.getenv("MASUMI_PAYMENT_API_KEY")
 MASUMI_AGENT_ID = os.getenv("MASUMI_AGENT_ID")
@@ -31,27 +35,35 @@ config = Config(
 
 app = FastAPI(title="Masumi AI Agent", description="An AI Agent available on the Masumi Network")
 
-class JobRequest(BaseModel):
-    input: str
+Address: TypeAlias = str
 
+# Expects input in the following format:
+# curl -i -X POST "http://localhost:8000/start_job" \
+#      -H "Content-Type: application/json" \
+#      -d '{
+#             "input": {
+#                 "addresses": [
+#                    "addr1z8ke0c9p89rjfwmuh98jpt8ky74uy5mffjft3zlcld9h7ml3lmln3mwk0y3zsh3gs3dzqlwa9rjzrxawkwm4udw9axhs6fuu6e",
+#                    "addr1x89ksjnfu7ys02tedvslc9g2wk90tu5qte0dt4dge60hdudj764lvrxdayh2ux30fl0ktuh27csgmpevdu89jlxppvrsg0g63z"
+#                 ]
+#             }
+#        }'
+class JobRequest(BaseModel):
+    input: dict[str, List[Address]] = {"addresses": []}
 
 # This is the function that actually performs the task.
 # It is called by the handle_payment_status function after payment confirmation.
 async def execute_job(job_input: str) -> None:
     """ Executes job after payment confirmation """
     
-    # 👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇
-    #!!!! Run your agent code here
-    # result = YourAIAgent.run(job_input)
-    
-    print(f"\n\nExecuting job with input: {job_input} !!!\n\n")
-
-    # Just simulating the time it takes the Agent to execute the job
-    # Remove this line in your own implementation
-    await asyncio.sleep(10)
-
-    # return the result of running the agent
-    return "Finished executing Job and this is the result"
+    # Deserialize the JSON string back to a list and format it properly
+    input_addresses = json.loads(job_input)
+    # Expected input format for the crew
+    formatted_input = {"addresses": input_addresses}
+    degen_crew = DegenCrew().crew()
+    # Must be async otherwise blocks calls to the status endpoint
+    result = await degen_crew.kickoff_async(inputs=formatted_input)
+    return result.raw
 
 # This is the function that handles the payment status once payment is confirmed.
 # It is called by the start_job function after payment confirmation.
@@ -94,7 +106,7 @@ async def handle_payment_status(job_id: uuid.UUID) -> None:
      # Update job status
     job.status = "completed"
     job.payment_status = "completed"
-    job.result = result
+    job.result = result_str
     job.result_hash = result_hash
     db.commit()
 
@@ -103,11 +115,20 @@ async def handle_payment_status(job_id: uuid.UUID) -> None:
 
 @app.post('/start_job')
 async def start_job(request: JobRequest, db: Session = Depends(get_db)):
+    # Validate that addresses are provided and not empty
+    if not request.input['addresses'] or len(request.input['addresses']) == 0:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "At least one address must be provided"}
+        )
+
     job_id = uuid.uuid4()
+
+    input_data = json.dumps(request.input['addresses'])
 
     # Creates a hash of the input to be used as the identifier from the purchaser
     # Trims the result to 25 characters to follow payment service requirements
-    identifier_from_purchaser = hashlib.sha256(request.input.encode()).hexdigest()[:25]
+    identifier_from_purchaser = hashlib.sha256(input_data.encode()).hexdigest()[:25]
     # This cost can be arbitrary. 
     # Using a default of 10 ADA.
     cost_in_lovelace = "10000000"
@@ -120,7 +141,7 @@ async def start_job(request: JobRequest, db: Session = Depends(get_db)):
         amounts=amounts,
         config=config,
         identifier_from_purchaser=identifier_from_purchaser,
-        input_data=request.input
+        input_data=input_data
     )
 
     payment_request = await payment.create_payment_request()
@@ -136,7 +157,7 @@ async def start_job(request: JobRequest, db: Session = Depends(get_db)):
         payment_id=payment_id, 
         status="pending", 
         payment_status="pending", 
-        input_data=request.input, 
+        input_data=input_data,  # Serialize the list to JSON string
         input_hash=input_hash,
         identifier_from_purchaser=identifier_from_purchaser
     )
@@ -149,7 +170,7 @@ async def start_job(request: JobRequest, db: Session = Depends(get_db)):
 
     # Starts monitoring the payment status passing the callback function
     # that will be called when the payment status changes
-    await payment.start_status_monitoring(payment_callback)
+    await payment.start_status_monitoring(payment_callback, interval_seconds=20)
 
     return JSONResponse(
         status_code=201,
